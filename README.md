@@ -4,6 +4,65 @@
 
 Soft actor-critic is a deep reinforcement learning framework for training maximum entropy policies in continuous domains. The algorithm is based on the paper [Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor](https://arxiv.org/abs/1801.01290) presented at ICML 2018.
 
+## PyTorch (Python 3.10 & Windows) implementation
+
+The repository now ships with a self-contained PyTorch implementation (`torch_sac`) that targets Python 3.10 and runs on Windows and Linux alike. It removes the old `rllab` and TensorFlow dependencies and was tested with the MuJoCo-based Walker2d benchmark.
+
+### Quick start on Windows
+
+1. Ensure you have a working [MuJoCo](https://mujoco.readthedocs.io/en/stable/) installation (Gymnasium's `mujoco` extra installs the precompiled binaries) and [Microsoft C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) if it is not already available on your machine.
+2. Create and activate a Python 3.10 virtual environment:
+
+   ```powershell
+   py -3.10 -m venv .venv
+   .venv\Scripts\activate
+   python -m pip install --upgrade pip
+   ```
+
+3. Install the lightweight dependency set:
+
+   ```powershell
+   pip install -r requirements-windows.txt
+   ```
+
+4. Launch training (Walker2d by default):
+
+   ```powershell
+   python examples/torch_train.py --env-id Walker2d-v4 --total-steps 1000000
+   ```
+
+   Add `--device cuda` if you have a CUDA-capable GPU with a matching PyTorch build.
+
+Training artefacts are written under `runs/torch_sac/<env>_<timestamp>_seed<seed>` and include `progress.csv`, periodic checkpoints, and the final policy weights. Command line flags mirror the fields in `torch_sac.TrainConfig` (batch size, entropy tuning, evaluation cadence, etc.) so experiments can be scripted without editing the codebase. You can also use the package programmatically:
+
+```python
+from torch_sac import TrainConfig, train
+
+config = TrainConfig(env_id="Walker2d-v4", total_steps=200_000, log_dir="runs/walker")
+run_dir = train(config)
+print(f"results stored in {run_dir}")
+```
+
+### Analysing training runs
+
+The `progress.csv` file written during training captures evaluation scores, episode returns, losses, and entropy statistics. The helper script below turns one or more such logs into publication-ready figures and summary tables:
+
+```powershell
+python examples/torch_analyze.py runs/torch_sac/Walker2d-v4_*/progress.csv \
+    --labels seed1 seed2 seed3 \
+    --success-thresholds 3000 \
+    --title "Walker2d-v4 SAC (3 seeds)"
+```
+
+Key outputs are saved under `analysis/` by default:
+
+- `learning_curves.png` (or `.pdf`/`.svg`): 2×2 panel figure showing evaluation performance, training episode returns, critic/actor losses, and entropy temperature dynamics with optional smoothing.
+- `summary_metrics.csv`: aggregated statistics covering final/best evaluation return, area under the evaluation curve, time-to-threshold, and descriptive analytics for the latest training episodes. Use `--latex` or `--markdown` to export the same table for direct inclusion in papers.
+
+Smoothing and window lengths are configurable via `--smoothing-window` and `--episode-window`. Pass multiple log files to compare runs or seeds; the script automatically colours and labels each trajectory.
+
+The legacy TensorFlow implementation and documentation remain below for archival purposes.
+
 This implementation uses Tensorflow. For a PyTorch implementation of soft actor-critic, take a look at [rlkit](https://github.com/vitchyr/rlkit) by [Vitchyr Pong](https://github.com/vitchyr).
 
 See the [DIAYN documentation](./DIAYN.md) for using SAC for learning diverse skills.
